@@ -1,13 +1,35 @@
 services:
-  notes_api:
+  notes_api_0:
     build: .
-    container_name: fastapi-notes
-    ports:
-      - "8000:8000"
+    environment:
+      - POD_NAME=notas-api-0
     volumes:
-      - ./config:/etc/notas-config
-      - notes-data:/data
-    restart: unless-stopped
+      - ./config:/etc/notas-config:ro
+      - notes-data-0:/data
+    ports:
+      - "8001:8000"
+  
+  notes_api_1:
+    build: .
+    environment:
+      - POD_NAME=notas-api-1
+    volumes:
+      - ./config:/etc/notas-config:ro
+      - notes-data-1:/data
+    ports:
+      - "8002:8000"
+
+  notes_api_2:
+    build: .
+    environment:
+      - POD_NAME=notas-api-2
+    volumes:
+      - ./config:/etc/notas-config:ro
+      - notes-data-2:/data
+    ports:
+      - "8003:8000"
 
 volumes:
-  notes-data:
+  notes-data-0:
+  notes-data-1:
+  notes-data-2:
