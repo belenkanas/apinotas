@@ -5,6 +5,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
+      - ./config:/etc/notas-config
       - notes-data:/data
     restart: unless-stopped
 

@@ -6,6 +6,8 @@ import re
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
+CONFIG_DIR = Path(os.environ.get("CONFIG_DIR", "/etc/notas-config"))
+
 def get_instance_suffix() -> str:
     pod_name = os.getenv("POD_NAME", "msjapp-0")
     match = re.search(r"-(\d+)$", pod_name)
@@ -16,9 +18,25 @@ def get_instance_suffix() -> str:
     return "0"
 
 
-APP_TITLE = os.environ.get("APP_TITLE", "API de notas")
+def load_instance_config() -> dict:
+    suffix = get_instance_suffix()
+    config_file = CONFIG_DIR / f"instance-{suffix}.json"
+
+    if not config_file.exists():
+        return {}
+
+    try:
+        with config_file.open("r", encoding="utf-8") as file:
+            return json.load(file)
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+_instance_config = load_instance_config()
+
+APP_TITLE = _instance_config.get("title", os.environ.get("APP_TITLE", "API de notas"))
 APP_VERSION = os.environ.get("APP_VERSION", "v1")
-THEME_COLOR = os.environ.get("APP_THEME_COLOR", "azul")
+THEME_COLOR = _instance_config.get("color", os.environ.get("APP_THEME_COLOR", "azul"))
 
 app = FastAPI(title=APP_TITLE)
 
@@ -62,9 +80,12 @@ def save_notes(notes: dict[str, str]) -> None:
 
 @app.get("/")
 def health():
-    return {"status": "ok", 
-            "version": APP_VERSION, 
-            "color": THEME_COLOR}
+    return {
+        "status": "ok",
+        "instance": get_instance_suffix(),
+        "version": APP_VERSION,
+        "color": THEME_COLOR,
+    }
 
 @app.post("/add/{note_id}", status_code=201)
 def add_note(note_id: str, note: NoteRequest):

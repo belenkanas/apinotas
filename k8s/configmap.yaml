@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: notas-api-config
+data:
+  instance-0.json: |
+    {"title": "API de notas - Norte", "color": "azul"}
+  instance-1.json: |
+    {"title": "API de notas - Centro", "color": "verde"}
+  instance-2.json: |
+    {"title": "API de notas - Sur", "color": "rojo"}
