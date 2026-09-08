@@ -3,6 +3,8 @@ import json
 import os
 import re
 
+from datetime import datetime, timezone
+
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
@@ -35,7 +37,7 @@ def load_instance_config() -> dict:
 _instance_config = load_instance_config()
 
 APP_TITLE = _instance_config.get("title", os.environ.get("APP_TITLE", "API de notas"))
-APP_VERSION = os.environ.get("APP_VERSION", "v1")
+APP_VERSION = os.environ.get("APP_VERSION", "v2")
 THEME_COLOR = _instance_config.get("color", os.environ.get("APP_THEME_COLOR", "azul"))
 
 app = FastAPI(title=APP_TITLE)
@@ -77,6 +79,11 @@ def save_notes(notes: dict[str, str]) -> None:
             indent=4,
         )
 
+def normalize_note(raw) -> dict:
+    """Acepta el formato viejo (string plano) y el nuevo (dict), y devuelve siempre dict."""
+    if isinstance(raw, str):
+        return {"text": raw, "created_at": None, "updated_at": None}
+    return raw
 
 @app.get("/")
 def health():
@@ -90,28 +97,42 @@ def health():
 @app.post("/add/{note_id}", status_code=201)
 def add_note(note_id: str, note: NoteRequest):
     notes = load_notes()
-
     if note_id in notes:
-        raise HTTPException(
-            status_code=409,
-            detail="Ya existe una nota con ese identificador",
-        )
+        raise HTTPException(status_code=409, detail="Ya existe una nota con ese identificador")
 
-    notes[note_id] = note.text
+    now = datetime.now(timezone.utc).isoformat()
+    notes[note_id] = {"text": note.text, "created_at": now, "updated_at": now}
     save_notes(notes)
+    return {"message": "Nota guardada correctamente", "id": note_id, "text": note.text}
 
-    return {
-        "message": "Nota guardada correctamente",
-        "id": note_id,
-        "text": note.text,
-    }
+
+@app.put("/update/{note_id}")
+def update_note(note_id: str, note: NoteRequest):
+    notes = load_notes()
+    if note_id not in notes:
+        raise HTTPException(status_code=404, detail="No existe una nota con ese identificador")
+
+    current = normalize_note(notes[note_id])
+    current["text"] = note.text
+    current["updated_at"] = datetime.now(timezone.utc).isoformat()
+    notes[note_id] = current
+    save_notes(notes)
+    return {"message": "Nota actualizada correctamente", "id": note_id, "text": note.text}
+
+
+@app.delete("/delete/{note_id}")
+def delete_note(note_id: str):
+    notes = load_notes()
+    if note_id not in notes:
+        raise HTTPException(status_code=404, detail="No existe una nota con ese identificador")
+
+    del notes[note_id]
+    save_notes(notes)
+    return {"message": "Nota eliminada correctamente", "id": note_id}
 
 
 @app.get("/list")
 def list_notes():
     notes = load_notes()
-
-    return {
-        "total": len(notes),
-        "notes": notes,
-    }
+    normalized = {nid: normalize_note(raw) for nid, raw in notes.items()}
+    return {"total": len(normalized), "notes": normalized}
