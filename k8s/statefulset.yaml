@@ -5,6 +5,10 @@ metadata:
 spec:
   serviceName: notas-api-headless
   replicas: 3
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      partition: 0   # actualiza todos los pods con ordinal >= partition
   selector:
     matchLabels:
       app: notas-api
@@ -15,7 +19,7 @@ spec:
     spec:
       containers:
         - name: notas-api
-          image: notas-api:v1
+          image: notas-api:v1  
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
@@ -24,6 +28,8 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            - name: APP_VERSION
+              value: "v1"
           volumeMounts:
             - name: config
               mountPath: /etc/notas-config
