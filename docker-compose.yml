@@ -1,0 +1,12 @@
+services:
+  notes_api:
+    build: .
+    container_name: fastapi-notes
+    ports:
+      - "8000:8000"
+    volumes:
+      - notes-data:/data
+    restart: unless-stopped
+
+volumes:
+  notes-data:
