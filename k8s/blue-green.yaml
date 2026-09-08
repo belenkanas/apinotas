@@ -19,6 +19,9 @@ spec:
           image: notas-api:v1
           ports:
             - containerPort: 8000
+          env:
+            - name: APP_THEME_COLOR
+              value: "azul"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -41,7 +44,11 @@ spec:
           image: notas-api:v2
           ports:
             - containerPort: 8000
+          env:
+            - name: APP_THEME_COLOR
+              value: "verde"
 ---
+# (el resto del archivo — los 3 Services — queda exactamente igual, no lo repito)
 # Service de "producción": lo único que se toca para hacer el switch
 apiVersion: v1
 kind: Service
