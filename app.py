@@ -72,7 +72,7 @@ def add_note(note_id: str, note: NoteRequest):
 
     if note_id in notes:
         raise HTTPException(
-            status_code=404,
+            status_code=409,
             detail="Ya existe una nota con ese identificador",
         )
 
