@@ -129,3 +129,109 @@ curl.exe http://localhost:8000/     # confirma que volvió a v1 / azul
 ```
 
 Este es el punto clave frente al rollback de un rolling update: acá no hay que esperar a que se levanten pods de nuevo, solo se corta el tráfico hacia green y vuelve a blue al instante.
+
+## Tests unitarios
+
+`tests/test_app.py` usa `pytest` + `TestClient` de FastAPI. El archivo de notas se aísla con un fixture (`monkeypatch` sobre `NOTES_FILE`) para no tocar el `notes.json` real ni pisar datos entre tests. `v1` tiene los tests de los endpoints compartidos (`/`, `/add`, `/list`) más los de `get_instance_suffix()`; `v2` agrega los de `/update`, `/delete` y compatibilidad hacia atrás con notas en formato de texto plano.
+
+Instalar dependencias de test (separadas de las de producción, en `requirements-dev.txt`):
+
+```bash
+python -m pip install -r requirements.txt -r requirements-dev.txt
+```
+
+Correr:
+
+```bash
+python -m pytest -v
+```
+
+`DATA_DIR` es configurable por variable de entorno (`os.environ.get("DATA_DIR", "/data")`), para poder correr los tests fuera de Docker sin permisos sobre `/data`.
+
+## CI/CD con Jenkins
+
+Pipeline declarativo (`Jenkinsfile` en la raíz de cada branch) con 3 stages: instalar dependencias, correr tests, buildear la imagen Docker. Alcance de esta actividad: solo tests + build, sin push a registry ni despliegue automático a k8s.
+
+```groovy
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = "notas-api"
+        IMAGE_TAG  = "${env.BRANCH_NAME}"
+    }
+
+    stages {
+        stage('Install dependencies') {
+            steps {
+                sh '''
+                    python3 -m venv venv
+                    . venv/bin/activate
+                    pip install -r requirements.txt
+                    pip install -r requirements-dev.txt
+                    pip list
+                '''
+            }
+        }
+
+        stage('Run unit tests') {
+            steps {
+                sh '''
+                    . venv/bin/activate
+                    export DATA_DIR=$(pwd)/test-data
+                    pytest -v
+                '''
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
+            }
+        }
+    }
+
+    post {
+        always {
+            echo "Pipeline finalizado para la branch ${env.BRANCH_NAME}"
+        }
+        failure {
+            echo "Los tests fallaron o el build de la imagen falló"
+        }
+    }
+}
+```
+
+### Setup de Jenkins (corriendo en Docker)
+
+Jenkins corre como contenedor (`jenkins/jenkins:lts-jdk21`) vía `docker run` directo, reconstruido como imagen custom con Python y Docker CLI instalados, reutilizando el volumen `jenkins_home` existente:
+
+```dockerfile
+FROM jenkins/jenkins:lts-jdk21
+USER root
+RUN apt-get update && apt-get install -y python3 python3-pip python3-venv docker.io \
+    && rm -rf /var/lib/apt/lists/*
+USER jenkins
+```
+
+```powershell
+docker build -t jenkins-con-tools .
+docker stop jenkins; docker rm jenkins
+docker run -d --name jenkins `
+    -p 8080:8080 -p 50000:50000 `
+    -v jenkins_home:/var/jenkins_home `
+    -v /var/run/docker.sock:/var/run/docker.sock `
+    jenkins-con-tools
+```
+
+El socket de Docker se monta para que Jenkins pueda ejecutar `docker build` usando el Docker del host (Docker-outside-of-Docker). Esto suele requerir ajustar permisos (el usuario `jenkins` necesita pertenecer al grupo dueño del socket, o como arreglo temporal: `docker exec -u root jenkins chmod 666 /var/run/docker.sock`).
+
+### Tipo de job
+
+Se usa **Multibranch Pipeline** (un pipeline por cada branch del repo con `Jenkinsfile`, `v1` y `v2`). Con acceso anónimo a la API de GitHub, el escaneo de branches puede toparse con el rate limit (60 req/hora) — se resuelve agregando un Personal Access Token de GitHub como credencial en Jenkins. Para probar una branch puntual sin depender del escaneo completo, también sirve un job tipo "Pipeline" simple con "Pipeline script from SCM" apuntando a `*/v1`.
+
+### Problemas encontrados y solución
+
+- **`requirements-dev.txt` vacío o no commiteado** → `pytest: not found` sin error explícito de `pip`.
+- **`DATA_DIR` hardcodeado a `/data`** → `PermissionError` al importar `app.py` fuera de Docker; se resolvió haciéndolo configurable por env var.
+- **Permiso denegado en `/var/run/docker.sock`** → el usuario `jenkins` no pertenece al grupo dueño del socket; se resuelve con `chmod 666` (temporal) o agregando `jenkins` al grupo con el GID correcto en el Dockerfile (permanente).
