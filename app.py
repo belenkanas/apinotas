@@ -42,10 +42,9 @@ THEME_COLOR = _instance_config.get("color", os.environ.get("APP_THEME_COLOR", "a
 
 app = FastAPI(title=APP_TITLE)
 
-DATA_DIR = Path("/data")
+DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
 NOTES_FILE = DATA_DIR / "notes.json"
 
-# Crea la carpeta si todavía no existe.
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 

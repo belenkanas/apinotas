@@ -23,6 +23,7 @@ pipeline {
             steps {
                 sh '''
                     . venv/bin/activate
+                    export DATA_DIR=$(pwd)/test-data
                     pytest -v
                 '''
             }
