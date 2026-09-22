@@ -40,7 +40,7 @@ def test_add_note(client):
 def test_add_duplicate_note_fails(client):
     client.post("/add/1", json={"text": "Primera"})
     response = client.post("/add/1", json={"text": "Segunda"})
-    assert response.status_code == 409  # o 404 si mantuviste el original
+    assert response.status_code == 409  
 
 
 def test_list_after_adding(client):
