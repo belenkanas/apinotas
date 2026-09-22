@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         IMAGE_NAME = "notas-api"
-        IMAGE_TAG  = "v1" // Volver a "${env.BRANCH_NAME}" cuando se use el Multibranch Pipeline
+        IMAGE_TAG  = "${env.BRANCH_NAME}" // Volver a "${env.BRANCH_NAME}" cuando se use el Multibranch Pipeline
     }
 
     stages {
