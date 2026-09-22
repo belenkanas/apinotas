@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         IMAGE_NAME = "notas-api"
-        IMAGE_TAG  = "${env.BRANCH_NAME}"
+        IMAGE_TAG  = "${env.BRANCH_NAME}" // Volver a "${env.BRANCH_NAME}" cuando se use el Multibranch Pipeline
     }
 
     stages {
@@ -14,6 +14,7 @@ pipeline {
                     . venv/bin/activate
                     pip install -r requirements.txt
                     pip install -r requirements-dev.txt
+                    pip list
                 '''
             }
         }
@@ -22,6 +23,7 @@ pipeline {
             steps {
                 sh '''
                     . venv/bin/activate
+                    export DATA_DIR=$(pwd)/test-data
                     pytest -v
                 '''
             }
