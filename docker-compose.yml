@@ -3,6 +3,8 @@ services:
     build: .
     environment:
       - POD_NAME=notas-api-0
+      - CHAOS_FAIL_RATE=0.3
+      - CHAOS_DELAY_SECONDS=0.2
     volumes:
       - ./config:/etc/notas-config:ro
       - notes-data-0:/data
@@ -13,6 +15,8 @@ services:
     build: .
     environment:
       - POD_NAME=notas-api-1
+      - CHAOS_FAIL_RATE=0.3
+      - CHAOS_DELAY_SECONDS=0.2
     volumes:
       - ./config:/etc/notas-config:ro
       - notes-data-1:/data
@@ -23,6 +27,8 @@ services:
     build: .
     environment:
       - POD_NAME=notas-api-2
+      - CHAOS_FAIL_RATE=0.3
+      - CHAOS_DELAY_SECONDS=0.2
     volumes:
       - ./config:/etc/notas-config:ro
       - notes-data-2:/data
